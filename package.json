@@ -1,16 +1,16 @@
 {
   "private": true,
-  "displayName": "Plugin Name",
-  "name": "homebridge-plugin-name",
+  "displayName": "ttlock",
+  "name": "homebridge-ttlock",
   "version": "1.0.0",
-  "description": "A short description about what your plugin does.",
+  "description": "Use ttlock with homebridge.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "git://github.com/bwitting/homebridge-ttlock"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/bwitting/homebridge-ttlock/issues"
   },
   "engines": {
     "node": ">=14.18.1",

@@ -1,0 +1,80 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558 
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Install Homebridge Plugin",
+            "type": "process",
+            "command": "sudo",
+            "args": [
+                "npm",
+                "-g",
+                "install",
+                "my-plugin-name"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Uninstall Homebridge Plugin",
+            "type": "process",
+            "command": "sudo",
+            "args": [
+                "npm",
+                "-g",
+                "uninstall",
+                "my-plugin-name"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Restart Homebridge Service",
+            "type": "process",
+            "command": "sudo",
+            "args": [
+                "service",
+                "homebridge",
+                "restart"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Stop Homebridge Service",
+            "type": "process",
+            "command": "sudo",
+            "args": [
+                "service",
+                "homebridge",
+                "stop"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Test Homebridge",
+            "type": "process",
+            "command": "/usr/bin/homebridge",
+            "options": {
+                "env": {
+                    "NODE_OPTIONS": "--inspect=0.0.0.0:9229"
+                }
+            },
+            "args": [
+                "--user-storage-path",
+                "${workspaceFolder}/homebridge-test-config",
+                "--debug"
+            ],
+            "problemMatcher": [],
+            "dependsOn": "Clear Homebridge Accessory Cache"
+        },
+        {
+            "label": "Clear Homebridge Accessory Cache",
+            "type": "process",
+            "command": "/usr/bin/rm",
+            "args": [
+                "-rf",
+                "${workspaceFolder}/homebridge-test-config/accessories"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
