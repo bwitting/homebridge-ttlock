@@ -1,105 +1,131 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-
-import { ExampleHomebridgePlatform } from './platform';
+import { TtlockPlatform } from './platform';
+import { LockResponse } from './models/lock-response';
+import { TtlockApiClient } from './api';
+import axios from 'axios';
+import qs from 'qs';
 
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class ExamplePlatformAccessory {
+export class TtlockPlatformAccessory {
   private service: Service;
+  private Characteristic = this.platform.api.hap.Characteristic;
+  private apiClient = new TtlockApiClient(this.platform);
 
   /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
+   * Set possible states of the lock
    */
-  private exampleStates = {
-    On: false,
-    Brightness: 100,
+  public lockStates = {
+    Locked: true,
   };
 
+
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: TtlockPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'TTLock Homebridge Platform')
+      .setCharacteristic(this.platform.Characteristic.Model, String(accessory.context.device.lockVersion.groupId))
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.context.device.lockMac);
 
-    // get the LightBulb service if it exists, otherwise create a new LightBulb service
+    // get the LockMechanism service if it exists, otherwise create a new LockMechanism service
     // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+    this.service = this.accessory.getService(this.platform.Service.LockMechanism) ||
+    this.accessory.addService(this.platform.Service.LockMechanism);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
+    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.lockAlias);
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://developers.homebridge.io/#/service/Lightbulb
 
     // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this))                // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this));               // GET - bind to the `getOn` method below
+    this.service.getCharacteristic(this.platform.Characteristic.LockTargetState)
+      .onSet(this.handleLockTargetStateSet.bind(this))                // SET - bind to the `setOn` method below
+      .onGet(this.handleLockTargetStateGet.bind(this));               // GET - bind to the `getOn` method below
 
     // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
+    this.service.getCharacteristic(this.platform.Characteristic.LockCurrentState)
+      .onGet(this.handleLockTargetStateGet.bind(this));       // SET - bind to the 'setBrightness` method below
 
-    /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Lightbulb, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same sub type id.)
-     */
-
-    // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
-
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
-
-    /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
-     */
-    let motionDetected = false;
-    setInterval(() => {
-      // EXAMPLE - inverse the trigger
-      motionDetected = !motionDetected;
-
-      // push the new value to HomeKit
-      motionSensorOneService.updateCharacteristic(this.platform.Characteristic.MotionDetected, motionDetected);
-      motionSensorTwoService.updateCharacteristic(this.platform.Characteristic.MotionDetected, !motionDetected);
-
-      this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
-      this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
-    }, 10000);
   }
 
   /**
    * Handle "SET" requests from HomeKit
    * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
    */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
+  async handleLockTargetStateSet() {
 
-    this.platform.log.debug('Set Characteristic On ->', value);
+    let urlString = 'lock';
+    let currentValue = 0;
+    switch(this.lockStates.Locked){
+      case true:
+        currentValue = this.Characteristic.LockCurrentState.SECURED;
+        this.lockStates.Locked = true;
+        urlString = 'unlock';
+        break;
+      case false:
+        currentValue = this.Characteristic.LockCurrentState.UNSECURED;
+        this.lockStates.Locked = false;
+        urlString = 'lock';
+        break;
+    }
+
+    const theAccessToken = await this.apiClient.getAccessTokenAsync();
+    const lockId = this.accessory.context.device.lockId;
+    const now = new Date().getTime();
+
+    // Sends the HTTP request to set the lock state
+    try {
+      const response = await axios.post<LockResponse>(`https://api.ttlock.com/v3/lock/${urlString}`, qs.stringify({
+        clientId: this.platform.config.clientid,
+        accessToken: theAccessToken,
+        lockId: lockId,
+        date: now,
+      }), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      this.platform.log.debug(`https://api.ttlock.com/v3/${urlString}`);
+      this.platform.log.debug(JSON.stringify(response.data));
+      this.platform.log.debug('Returned: ' + String(response.data.errcode));
+
+      // API returns error code 0 if the request was successful
+      if (response.data.errcode === 0) {
+        switch(this.lockStates.Locked){
+          case true:
+            currentValue = this.Characteristic.LockCurrentState.UNSECURED;
+            this.lockStates.Locked = false;
+            break;
+          case false:
+            currentValue = this.Characteristic.LockCurrentState.SECURED;
+            this.lockStates.Locked = true;
+            break;
+        }
+        this.service.getCharacteristic(this.platform.Characteristic.LockCurrentState).updateValue(currentValue);
+        this.platform.log.info(this.accessory.context.device.lockAlias + ' ' + urlString + 'ed successfully. ' + currentValue);
+      } else {
+        //update lock state to current value
+        this.service.getCharacteristic(this.platform.Characteristic.LockCurrentState).updateValue(currentValue);
+      }
+
+    } catch (e) {
+      this.platform.log.warn(`${this.accessory.context.device.lockAlias} ${urlString} failed: ${e}`);
+
+    } finally {
+      this.handleLockTargetStateGet;
+      this.platform.log.debug('Finished handling lock state change');
+    }
+
   }
 
   /**
@@ -115,27 +141,64 @@ export class ExamplePlatformAccessory {
    * @example
    * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
    */
-  async getOn(): Promise<CharacteristicValue> {
-    // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
 
-    this.platform.log.debug('Get Characteristic On ->', isOn);
+  async handleLockTargetStateGet(): Promise<CharacteristicValue> {
 
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    // TODO
+    // call API to see if lock is locked or unlocked
 
-    return isOn;
+    //const theAccessToken = await this.getAccessTokenAsync();
+
+    //const apiClient = new TtlockApiClient(this.platform);
+
+    const theAccessToken = await this.apiClient.getAccessTokenAsync(1);
+
+    interface lockState {
+      state: number;
+    }
+
+    let lockStateValue = 0;
+    let currentValue = 0;
+    switch(this.lockStates.Locked){
+      case true:
+        currentValue = this.Characteristic.LockCurrentState.SECURED;
+        this.lockStates.Locked = true;
+        break;
+      case false:
+        currentValue = this.Characteristic.LockCurrentState.UNSECURED;
+        this.lockStates.Locked = false;
+        break;
+    }
+
+    const clientId = this.platform.config.clientid;
+    const lockId = this.accessory.context.device.lockId;
+    const now = new Date().getTime();
+
+    // Sends the HTTP request to set the box status
+    try {
+      // eslint-disable-next-line max-len
+      const response = await axios.get<lockState>(`https://api.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${theAccessToken}&lockId=${lockId}&date=${now}`);
+      this.platform.log.debug('Lock state is: ' + String(response.data.state));
+      lockStateValue = Number(response.data.state);
+
+      switch(lockStateValue){
+        case 0:
+          currentValue = this.Characteristic.LockCurrentState.SECURED;
+          this.lockStates.Locked = true;
+          break;
+        case 1:
+          currentValue = this.Characteristic.LockCurrentState.UNSECURED;
+          this.lockStates.Locked = false;
+          break;
+      }
+
+    } catch (e) {
+      this.platform.log.warn(`Error while getting status via API: ${e}`);
+    } finally {
+      this.service.getCharacteristic(this.platform.Characteristic.LockCurrentState).updateValue(currentValue);
+    }
+
+    return currentValue;
+
   }
-
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
-   */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
-
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
-  }
-
 }
