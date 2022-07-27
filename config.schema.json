@@ -9,7 +9,7 @@
         "title": "Name",
         "type": "string",
         "required": true,
-        "default": "ttlock Homebridge Plugin"
+        "default": "TTLock"
       },
       "clientid": {
         "title": "Client ID",

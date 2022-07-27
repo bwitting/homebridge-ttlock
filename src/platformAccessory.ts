@@ -22,7 +22,6 @@ export class TtlockPlatformAccessory {
     Locked: true,
   };
 
-
   constructor(
     private readonly platform: TtlockPlatform,
     private readonly accessory: PlatformAccessory,
@@ -147,10 +146,6 @@ export class TtlockPlatformAccessory {
     // TODO
     // call API to see if lock is locked or unlocked
 
-    //const theAccessToken = await this.getAccessTokenAsync();
-
-    //const apiClient = new TtlockApiClient(this.platform);
-
     const theAccessToken = await this.apiClient.getAccessTokenAsync(1);
 
     interface lockState {
@@ -174,10 +169,10 @@ export class TtlockPlatformAccessory {
     const lockId = this.accessory.context.device.lockId;
     const now = new Date().getTime();
 
-    // Sends the HTTP request to set the box status
+    // Sends the HTTP request to get the lock status
     try {
-      // eslint-disable-next-line max-len
-      const response = await axios.get<lockState>(`https://api.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${theAccessToken}&lockId=${lockId}&date=${now}`);
+      const response = await axios.get<lockState>
+      (`https://api.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${theAccessToken}&lockId=${lockId}&date=${now}`);
       this.platform.log.debug('Lock state is: ' + String(response.data.state));
       lockStateValue = Number(response.data.state);
 
