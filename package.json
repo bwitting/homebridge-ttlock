@@ -1,9 +1,9 @@
 {
   "private": true,
-  "displayName": "ttlock",
+  "displayName": "TTLock Plugin",
   "name": "homebridge-ttlock",
-  "version": "1.0.0",
-  "description": "Use ttlock with homebridge.",
+  "version": "0.1.2",
+  "description": "Use locks with TTLock platform on Homebridge.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -26,9 +26,13 @@
   "keywords": [
     "homebridge-plugin"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "axios": "^0.27.2",
+    "qs": "^6.11.0"
+  },
   "devDependencies": {
     "@types/node": "^16.10.9",
+    "@types/qs": "^6.9.7",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
     "eslint": "^8.0.1",
