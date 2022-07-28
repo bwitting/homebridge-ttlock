@@ -1,8 +1,13 @@
 
 <span align="center">
 
+<p align="center">
 <img src="https://github.com/homebridge/branding/raw/master/logos/homebridge-wordmark-logo-vertical.png" width="150">
+</p>
 
+<p align="center">
+<img src="https://open.ttlock.com/resources/developer/img/logo_ttlock.a53b544e.png" width="80">
+</p>
 
 
 
