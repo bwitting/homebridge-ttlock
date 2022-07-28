@@ -1,41 +1,45 @@
 
-<p align="center">
+<span align="center">
 
 <img src="https://github.com/homebridge/branding/raw/master/logos/homebridge-wordmark-logo-vertical.png" width="150">
 
 
-</p>
+
 
 
 # Homebridge TTLock Plugin 
 
-Homebridge plugin for the TTLock platform.
-
-<p align="center">
 
 
-<img src="https://open.ttlock.com/resources/developer/img/logo_ttlock.a53b544e.png" width="100">
-
+<p>A Homebridge <a href="https://open.ttlock.com/document/doc?urlName=userGuide%2FekeyEn.html">TTLock</a>  
+plugin that allows you to access your TTLock Device(s) from HomeKit with
+  <a href="https://homebridge.io">Homebridge</a>. 
 </p>
 
-<br><br>
+[![npm downloads](https://badgen.net/github/checks/bwitting/homebridge-ttlock)](https://github.com/bwitting/homebridge-ttlock)
+[![npm version](https://badgen.net/github/release/bwitting/homebridge-ttlock)](https://github.com/bwitting/homebridge-ttlock)
+[![npm version](https://badgen.net/npm/v/homebridge-ttlock)](https://www.npmjs.com/package/homebridge-ttlock)
+[![npm downloads](https://badgen.net/npm/dt/homebridge-ttlock)](https://www.npmjs.com/package/homebridge-ttlock)
+
+
+</span>
 
 
 # Requirements
-1. Lock using TTLock Platform
-2. TTLock Compatible Gateway (G1, G2, G3, or G4). Successfully tested with [this one](https://www.amazon.com/gp/product/B085THR6VX).
+1. Lock/door handle using TTLock Platform (Wifi, or Bluetooth + Gateway)
+2. If using Bluetooth - TTLock Compatible Gateway (G1, G2, G3, or G4). Successfully tested with [this one](https://www.amazon.com/gp/product/B085THR6VX)
 3. TTLock app for iOS or Android 
 4. Bash access to run curl command
-<br><br>
+<br><br><br>
 
 
 # Setup Instructions
 
 ## Create TTLock Developer Account
 1. Go to [TTLock Platform Registration](https://open.ttlock.com/register).
-2. Complete the required information to create an account.
-3. Wait for the email confirming activation of your account (manual process by TTLock).
-4. Log into the TTLock Developer Platform and retreive your ClientId and ClientSecret
+2. Complete the required information to create a developer account for API access.
+3. Wait for the email confirming activation of your account (manual process that will be completed by TTLock).
+4. Log back into the TTLock Developer Platform and retreive your ClientId and ClientSecret.
 
 <br><br>
 
@@ -49,7 +53,7 @@ Homebridge plugin for the TTLock platform.
 curl --location --request POST 'https://api.ttlock.com/v3/user/register?clientId=[clientid]&clientSecret=[clientsecret]&username=[username]&password=[passwordasmd5]&date=CURRENTMILLIS' \
 --header 'Content-Type: application/x-www-form-urlencoded' \
 ```
-4. In the response to the request, note the username that is assigned (it will be your username prefixed with some random characters).
+4. In the response to the request, note the username that is assigned (it will be your username prefixed with some random characters).  This will be the username you'll use to log into the mobile app and the Homebridge plugin from now on.
 
 
 <br><br>
@@ -57,10 +61,10 @@ curl --location --request POST 'https://api.ttlock.com/v3/user/register?clientId
 
 ## Associate Lock and Gateway with New Account
 
-1. Log into the TTLock iOS or Android app with your new account.
-2. Add your lock(s)
-3. Add the gateway (and ensure it is associated with the locks)
-4. In the settings for each lock, ensure the Remote Unlock setting is set to On.
+1. Log into the TTLock iOS or Android app with your new account.  You'll use the username that the API call returned, and the password you created (NOT as md5).
+2. Add your lock(s) to the app to accociate them with your account.  If you have previously used the lock with the app, you'll have to reset and add it to the new account.
+3. If using Bluetooth, add the gateway (and ensure it is associated with the locks).
+4. **Important** -In the settings for each lock, ensure the Remote Unlock setting is set to On.
 
 <br><br>
 
@@ -96,15 +100,19 @@ or install via the Homebridge UI.
 
 **password**: Password for the user account as md5.
 
-<br>
+**maximumApiRetry**: Maximum times to retry hitting the API.
+
+<br><br>
 
 # Usage
 
-* On Homebridge load, plugin will get all locks from TTLock account
-* Lock and unlock locks with Homekit.
+* On Homebridge load, plugin will get all locks from TTLock account and add them to Homebridge (if they are not already cached)
+* Use Homekit to lock and unlock your locks!
 
-# Backlog
+<br><br>
 
-* Get/update battery stat for each lock
+# Planned Backlog
+
+* Get/update battery stat for each lock from API
 * Better handle condition when gateway is busy
 * Expose each lock to config and allow more customization
