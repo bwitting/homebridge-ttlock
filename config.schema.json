@@ -2,6 +2,8 @@
   "pluginAlias": "ttlock",
   "pluginType": "platform",
   "singular": true,
+  "headerDisplay": "## TTLock Platform for Homebridge\n\n**Important:** For setup instructions, please see the project [GitHub Page](https://github.com/bwitting/homebridge-ttlock).",
+
   "schema": {
     "type": "object",
     "properties": {
@@ -14,30 +16,61 @@
       "clientid": {
         "title": "Client ID",
         "type": "string",
-        "required": true
+        "required": true,
+        "description": "The Client ID for your TTLock developer account."
       },
       "clientsecret": {
         "title": "Client Secret",
         "type": "string",
-        "required": true
+        "required": true,
+        "description": "The Client Secret for your TTLock developer account."
       },
       "username": {
         "title": "Username",
         "type": "string",
-        "required": true
+        "required": true,
+        "description": "The username for the TTLock User associated with your developer account - with the prefix returned by the TTLock API"
       },
       "password": {
-        "title": "Password",
+        "title": "Password (md5 hashed)",
         "type": "string",
-        "required": true
+        "required": true,
+        "description": "The password for the TTLock User associated with your developer account - md5 hashed."
+      },
+      "batteryLowLevel": {
+        "title": "Low battery warning threshold level (in percent)",
+        "type": "integer",
+        "required": true,
+        "default": 15,
+        "minimum": 0,
+        "maximum": 100,
+        "description": "The battery level percentage at which a low battery warning will be displayed in the HomeKit status."
       },
       "maximumApiRetry": {
         "title": "Maximum amount of retries",
         "type": "integer",
-        "default": 3,
-        "placeholder": 3,
-        "description": "The amount of attempts to call the Tedee API. Useful if you do not want to repeat failed lock/unlock/unlatch attempts after a long timeout delay."
+        "required": true,
+        "default": 5,
+        "placeholder": 5,
+        "description": "The amount of attempts to call the TTLock API. Useful if you do not want to repeat failed lock/unlock attempts after a long timeout delay."
       }
     }
-  }
+  },
+  "form": [
+    "name",
+    "username",
+    "password",
+    "clientid",
+    "clientsecret",
+    {
+      "type": "fieldset",
+      "expandable": true,
+      "title": "Advanced Settings",
+      "description": "",
+      "items": [
+        "batteryLowLevel",
+        "maximumApiRetry"
+      ]
+    }
+  ]
 }

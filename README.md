@@ -74,12 +74,12 @@ curl --location --request POST 'https://api.ttlock.com/v3/user/register?clientId
 <br><br>
 
 ## Plugin Installation
-Install the plugin with the following command:
+**Recommended**: install via the Homebridge UI
+
+Or install the plugin with the following command:
 ```
 npm install -g homebridge-ttlock
 ```
-or install via the Homebridge UI.
-
 <br><br>
 
 ## Configuration
@@ -91,7 +91,8 @@ or install via the Homebridge UI.
             "clientsecret": "clientsecret",
             "username": "username",
             "password": "passwordasmd5",
-            "maximumApiRetry": 3;
+            "batteryLowLevel": 15,
+            "maximumApiRetry": 5;
         }
 ```
 
@@ -105,6 +106,8 @@ or install via the Homebridge UI.
 
 **password**: Password for the user account as md5.
 
+**batteryLowLevel**: The battery level percentage at which a low battery warning will be displayed in the HomeKit status.
+
 **maximumApiRetry**: Maximum times to retry hitting the API.
 
 <br><br>
@@ -113,11 +116,11 @@ or install via the Homebridge UI.
 
 * On Homebridge load, plugin will get all locks from TTLock account and add them to Homebridge (if they are not already cached)
 * Use Homekit to lock and unlock your locks!
+* Homekit will show warning when lock has low battery (customize in plugin configuration) 
 
 <br><br>
 
 # Planned Backlog
 
-* Get/update battery stat for each lock from API
 * Better handle condition when gateway is busy
 * Expose each lock to config and allow more customization
