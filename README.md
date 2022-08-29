@@ -21,10 +21,10 @@ plugin that allows you to access your TTLock Device(s) from HomeKit with
   <a href="https://homebridge.io">Homebridge</a>. 
 </p>
 
-[![npm downloads](https://badgen.net/github/checks/bwitting/homebridge-ttlock)](https://github.com/bwitting/homebridge-ttlock)
-[![npm version](https://badgen.net/github/release/bwitting/homebridge-ttlock)](https://github.com/bwitting/homebridge-ttlock)
-[![npm version](https://badgen.net/npm/v/homebridge-ttlock)](https://www.npmjs.com/package/homebridge-ttlock)
-[![npm downloads](https://badgen.net/npm/dt/homebridge-ttlock)](https://www.npmjs.com/package/homebridge-ttlock)
+[![github checks](https://badgen.net/github/checks/bwitting/homebridge-ttlock?icon=github&label=checks)](https://github.com/bwitting/homebridge-ttlock)
+[![github release](https://badgen.net/github/release/bwitting/homebridge-ttlock?icon=github&label=release)](https://github.com/bwitting/homebridge-ttlock)
+[![npm version](https://badgen.net/npm/v/homebridge-ttlock?icon=npm&label=version)](https://www.npmjs.com/package/homebridge-ttlock)
+[![npm downloads](https://badgen.net/npm/dt/homebridge-ttlock?icon=npm&label=downloads)](https://www.npmjs.com/package/homebridge-ttlock)
 
 
 </span>
@@ -55,7 +55,7 @@ plugin that allows you to access your TTLock Device(s) from HomeKit with
 3. Using a terminal, run this command to create the new user on your developer account:
 
 ```
-curl --location --request POST 'https://api.ttlock.com/v3/user/register?clientId=[clientid]&clientSecret=[clientsecret]&username=[username]&password=[passwordasmd5]&date=CURRENTMILLIS' \
+curl --location --request POST 'https://euapi.ttlock.com/v3/user/register?clientId=[clientid]&clientSecret=[clientsecret]&username=[username]&password=[passwordasmd5]&date=CURRENTMILLIS' \
 --header 'Content-Type: application/x-www-form-urlencoded' \
 ```
 4. In the response to the request, note the username that is assigned (it will be your username prefixed with some random characters).  This will be the username you'll use to log into the mobile app and the Homebridge plugin from now on.

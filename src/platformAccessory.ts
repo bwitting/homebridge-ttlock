@@ -78,7 +78,7 @@ export class TtlockPlatformAccessory {
 
     // Sends the HTTP request to set the lock state
     try {
-      const response = await axios.post<LockResponse>(`https://api.ttlock.com/v3/lock/${urlString}`, qs.stringify({
+      const response = await axios.post<LockResponse>(`https://euapi.ttlock.com/v3/lock/${urlString}`, qs.stringify({
         clientId: this.platform.config.clientid,
         accessToken: accessToken,
         lockId: lockId,
@@ -89,7 +89,7 @@ export class TtlockPlatformAccessory {
         },
       });
 
-      this.platform.log.debug(`https://api.ttlock.com/v3/${urlString}`);
+      this.platform.log.debug(`https://euapi.ttlock.com/v3/${urlString}`);
       this.platform.log.debug(JSON.stringify(response.data));
       this.platform.log.debug('Returned: ' + String(response.data.errcode));
 
@@ -159,7 +159,7 @@ export class TtlockPlatformAccessory {
     // Sends the HTTP request to get the lock status
     try {
       const response = await axios.get<lockState>
-      (`https://api.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`);
+      (`https://euapi.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`);
       this.platform.log.debug('Lock state is: ' + String(response.data.state));
       currentLockStateValue = Number(response.data.state);
 
@@ -199,7 +199,7 @@ export class TtlockPlatformAccessory {
     // Sends the HTTP request to get the battery level
     try {
       const response = await axios.get<Lock>
-      (`https://api.ttlock.com/v3/lock/detail?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`);
+      (`https://euapi.ttlock.com/v3/lock/detail?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`);
       this.platform.log.debug('Lock battery level is: ' + String(response.data.electricQuantity));
       currentBatteryLevelValue = Number(response.data.electricQuantity);
 

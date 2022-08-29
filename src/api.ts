@@ -52,7 +52,7 @@ export class TtlockApiClient {
 
     // Sends the HTTP request to get a new access token
     try {
-      const response = await axios.post<TokenResponse>('https://api.ttlock.com/oauth2/token', qs.stringify({
+      const response = await axios.post<TokenResponse>('https://euapi.ttlock.com/oauth2/token', qs.stringify({
         client_id: this.platform.config.clientid,
         client_secret: this.platform.config.clientsecret,
         username:  this.platform.config.username,

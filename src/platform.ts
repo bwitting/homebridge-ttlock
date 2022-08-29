@@ -61,7 +61,7 @@ export class TtlockPlatform implements DynamicPlatformPlugin {
     // Sends the HTTP request to get the locks on the account
     try {
       const now = new Date().getTime();
-      response = await axios.post<LocksResponse>('https://api.ttlock.com/v3/lock/list', qs.stringify({
+      response = await axios.post<LocksResponse>('https://euapi.ttlock.com/v3/lock/list', qs.stringify({
         clientId: this.config.clientid,
         accessToken: theAccessToken,
         pageNo:  1,
