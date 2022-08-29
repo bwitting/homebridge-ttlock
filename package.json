@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "TTLock Platform",
   "name": "homebridge-ttlock",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Use locks with TTLock platform on Homebridge.",
   "license": "Apache-2.0",
   "repository": {
