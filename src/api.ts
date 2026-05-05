@@ -61,6 +61,7 @@ export class TtlockApiClient {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+        timeout: 4000,
       });
 
       // Stores the access token
@@ -73,7 +74,10 @@ export class TtlockApiClient {
 
     } catch (e) {
       this.platform.log.warn(`Error while retrieving access token: ${e}`);
-      return await this.getAccessTokenAsync(retryCount);
+      if (typeof retryCount === 'number' && retryCount > 1) {
+        return await this.getAccessTokenAsync(retryCount - 1);
+      }
+      throw e;
     }
   }
 }

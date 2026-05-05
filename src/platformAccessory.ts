@@ -2,7 +2,6 @@ import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { TtlockPlatform } from './platform';
 import { LockResponse } from './models/lock-response';
 import { Lock } from './models/lock';
-import { TtlockApiClient } from './api';
 import axios from 'axios';
 import qs from 'qs';
 
@@ -12,9 +11,19 @@ import qs from 'qs';
  * Each accessory may expose multiple services of different service types.
  */
 export class TtlockPlatformAccessory {
+  private static readonly REFRESH_THROTTLE_MS = 10_000;
+
   private service: Service;
   private Characteristic = this.platform.api.hap.Characteristic;
-  private apiClient = new TtlockApiClient(this.platform);
+  private apiClient = this.platform.apiClient;
+
+  // Background refresh state: HomeKit reads return cached state immediately
+  // and a refresh is kicked off in the background, throttled per accessory.
+  private refreshLockInFlight = false;
+  private lastLockRefreshAt = 0;
+  private refreshBatteryInFlight = false;
+  private lastBatteryRefreshAt = 0;
+
   /**
    * Set possible states of the lock
    */
@@ -120,97 +129,136 @@ export class TtlockPlatformAccessory {
       this.platform.log.warn(`${this.accessory.context.device.lockAlias} ${urlString} failed: ${e}`);
 
     } finally {
-      this.handleLockTargetStateGet;
+      // Force a fresh state refresh after a set; bypasses the throttle so HomeKit
+      // sees the device-confirmed state quickly. The in-flight guard inside
+      // refreshLockState still prevents stacking.
+      void this.refreshLockState();
       this.platform.log.debug('Finished handling lock state change');
     }
 
   }
 
   /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory.
+   * Handle the "GET" requests from HomeKit.
+   * Returns the cached state immediately and triggers a throttled background
+   * refresh from the TTLock API. Fresh state, when available, is pushed to
+   * HomeKit via updateValue() rather than blocking the read handler.
    */
-
   async handleLockTargetStateGet(): Promise<CharacteristicValue> {
+    const cached = this.lockStates.Locked
+      ? this.Characteristic.LockCurrentState.SECURED
+      : this.Characteristic.LockCurrentState.UNSECURED;
+    this.maybeRefreshLockState();
+    return cached;
+  }
 
-    const accessToken = await this.apiClient.getAccessTokenAsync(Number(this.platform.config.maximumApiRetry));
+  /**
+   * Trigger a background lock-state refresh, subject to the throttle and the
+   * in-flight guard. Safe to call from HomeKit GET handlers.
+   */
+  private maybeRefreshLockState(): void {
+    if (this.refreshLockInFlight) {
+      return;
+    }
+    if (Date.now() - this.lastLockRefreshAt < TtlockPlatformAccessory.REFRESH_THROTTLE_MS) {
+      return;
+    }
+    void this.refreshLockState();
+  }
+
+  /**
+   * Fetch the lock state from the TTLock API and push it to HomeKit on success.
+   * On failure, leaves HomeKit's last-known state alone. Always chains a battery
+   * refresh in the finally block (also throttled).
+   */
+  private async refreshLockState(): Promise<void> {
+    if (this.refreshLockInFlight) {
+      return;
+    }
+    this.refreshLockInFlight = true;
+    this.lastLockRefreshAt = Date.now();
 
     interface lockState {
       state: number;
     }
 
-    let currentLockStateValue = 0;
-    let currentValue = 0;
-    switch(this.lockStates.Locked){
-      case true:
-        currentValue = this.Characteristic.LockCurrentState.SECURED;
-        this.lockStates.Locked = true;
-        break;
-      case false:
-        currentValue = this.Characteristic.LockCurrentState.UNSECURED;
-        this.lockStates.Locked = false;
-        break;
-    }
-
-    const clientId = this.platform.config.clientid;
-    const lockId = this.accessory.context.device.lockId;
-    const now = new Date().getTime();
-
-    // Sends the HTTP request to get the lock status
     try {
-      const response = await axios.get<lockState>
-      (`https://euapi.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`);
-      this.platform.log.debug('Lock state is: ' + String(response.data.state));
-      currentLockStateValue = Number(response.data.state);
+      const accessToken = await this.apiClient.getAccessTokenAsync(Number(this.platform.config.maximumApiRetry));
 
-      switch(currentLockStateValue){
+      const clientId = this.platform.config.clientid;
+      const lockId = this.accessory.context.device.lockId;
+      const now = new Date().getTime();
+
+      const response = await axios.get<lockState>
+      (`https://euapi.ttlock.com/v3/lock/queryOpenState?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`,
+        { timeout: 4000 });
+      this.platform.log.debug('Lock state is: ' + String(response.data.state));
+
+      let newValue: CharacteristicValue | undefined;
+      switch (Number(response.data.state)) {
         case 0:
-          currentValue = this.Characteristic.LockCurrentState.SECURED;
           this.lockStates.Locked = true;
+          newValue = this.Characteristic.LockCurrentState.SECURED;
           break;
         case 1:
-          currentValue = this.Characteristic.LockCurrentState.UNSECURED;
           this.lockStates.Locked = false;
+          newValue = this.Characteristic.LockCurrentState.UNSECURED;
           break;
+      }
+
+      if (newValue !== undefined) {
+        this.service.getCharacteristic(this.platform.Characteristic.LockCurrentState).updateValue(newValue);
+        this.service.getCharacteristic(this.platform.Characteristic.LockTargetState).updateValue(newValue);
       }
 
     } catch (e) {
       this.platform.log.warn(`Error while getting status via API: ${e}`);
     } finally {
-      //update the lock state characteristic with the currentlock state value
-      this.service.getCharacteristic(this.platform.Characteristic.LockCurrentState).updateValue(currentValue);
-      //now get the battery level
-      this.handleLockBatteryLevelGet();
+      this.refreshLockInFlight = false;
+      this.maybeRefreshBatteryLevel();
     }
-    return currentValue;
-
   }
 
+  /**
+   * Trigger a background battery-level refresh, subject to the throttle and
+   * the in-flight guard.
+   */
+  private maybeRefreshBatteryLevel(): void {
+    if (this.refreshBatteryInFlight) {
+      return;
+    }
+    if (Date.now() - this.lastBatteryRefreshAt < TtlockPlatformAccessory.REFRESH_THROTTLE_MS) {
+      return;
+    }
+    void this.refreshBatteryLevel();
+  }
 
-  async handleLockBatteryLevelGet(): Promise<CharacteristicValue> {
+  /**
+   * Fetch the battery level from the TTLock API and push it to HomeKit on
+   * success. On failure, leaves HomeKit's last-known battery values alone.
+   */
+  private async refreshBatteryLevel(): Promise<void> {
+    if (this.refreshBatteryInFlight) {
+      return;
+    }
+    this.refreshBatteryInFlight = true;
+    this.lastBatteryRefreshAt = Date.now();
 
-    const accessToken = await this.apiClient.getAccessTokenAsync(Number(this.platform.config.maximumApiRetry));
-
-    let currentBatteryLevelValue = 0;
-    const clientId = this.platform.config.clientid;
-    const lockId = this.accessory.context.device.lockId;
-    const now = new Date().getTime();
-
-    // Sends the HTTP request to get the battery level
     try {
+      const accessToken = await this.apiClient.getAccessTokenAsync(Number(this.platform.config.maximumApiRetry));
+
+      const clientId = this.platform.config.clientid;
+      const lockId = this.accessory.context.device.lockId;
+      const now = new Date().getTime();
+
       const response = await axios.get<Lock>
-      (`https://euapi.ttlock.com/v3/lock/detail?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`);
+      (`https://euapi.ttlock.com/v3/lock/detail?clientId=${clientId}&accessToken=${accessToken}&lockId=${lockId}&date=${now}`,
+        { timeout: 4000 });
       this.platform.log.debug('Lock battery level is: ' + String(response.data.electricQuantity));
-      currentBatteryLevelValue = Number(response.data.electricQuantity);
+      const fresh = Number(response.data.electricQuantity);
 
-    } catch (e) {
-      this.platform.log.warn(`Error while getting battery level via API: ${e}`);
-
-
-    } finally {
-      //update the battery level characteristic with the current value
-      this.service.getCharacteristic(this.platform.Characteristic.BatteryLevel).updateValue(currentBatteryLevelValue);
-      if (currentBatteryLevelValue < Number(this.platform.config.batteryLowLevel)) {
+      this.service.getCharacteristic(this.platform.Characteristic.BatteryLevel).updateValue(fresh);
+      if (fresh < Number(this.platform.config.batteryLowLevel)) {
         this.service.getCharacteristic(this.platform.Characteristic.StatusLowBattery).updateValue(true);
         this.platform.log.debug('Low battery level triggered');
       } else {
@@ -218,8 +266,10 @@ export class TtlockPlatformAccessory {
         this.platform.log.debug('Battery level is OK');
       }
 
+    } catch (e) {
+      this.platform.log.warn(`Error while getting battery level via API: ${e}`);
+    } finally {
+      this.refreshBatteryInFlight = false;
     }
-
-    return currentBatteryLevelValue;
   }
 }
