@@ -45,35 +45,44 @@ export class TtlockApiClient {
       return this.accessToken;
     }
 
-    // Set the default retry count
-    if (!retryCount) {
-      retryCount = this.platform.config.maximumTokenRetry;
+    // A missing or invalid argument falls back to the retry limit exposed in
+    // config.schema.json. Zero is a valid value: it means one request and no
+    // retries.
+    if (typeof retryCount !== 'number' || !Number.isFinite(retryCount)) {
+      const configuredRetryCount = Number(this.platform.config.maximumApiRetry);
+      retryCount = Number.isFinite(configuredRetryCount) ? configuredRetryCount : 0;
+    }
+    const retriesRemaining = Math.max(0, Math.floor(retryCount));
+
+    for (let attempt = 0; attempt <= retriesRemaining; attempt += 1) {
+      try {
+        const response = await axios.post<TokenResponse>('https://euapi.ttlock.com/oauth2/token', qs.stringify({
+          client_id: this.platform.config.clientid,
+          client_secret: this.platform.config.clientsecret,
+          username:  this.platform.config.username,
+          password: this.platform.config.password,
+        }), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+
+        // Stores the access token
+        this.accessToken = String(response.data.access_token);
+        this.expirationDateTime = new Date(new Date().getTime() + (response.data.expires_in * 1000));
+
+        // Never write the bearer token to logs.
+        this.platform.log.debug('Access token received from server.');
+        return this.accessToken;
+
+      } catch (e) {
+        this.platform.log.warn(`Error while retrieving access token: ${e}`);
+        if (attempt === retriesRemaining) {
+          throw e;
+        }
+      }
     }
 
-    // Sends the HTTP request to get a new access token
-    try {
-      const response = await axios.post<TokenResponse>('https://euapi.ttlock.com/oauth2/token', qs.stringify({
-        client_id: this.platform.config.clientid,
-        client_secret: this.platform.config.clientsecret,
-        username:  this.platform.config.username,
-        password: this.platform.config.password,
-      }), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
-      // Stores the access token
-      this.accessToken = String(response.data.access_token);
-      this.expirationDateTime = new Date(new Date().getTime() + (response.data.expires_in * 1000));
-
-      // Returns the access token
-      this.platform.log.debug('Access token received from server.' + this.accessToken);
-      return this.accessToken;
-
-    } catch (e) {
-      this.platform.log.warn(`Error while retrieving access token: ${e}`);
-      return await this.getAccessTokenAsync(retryCount);
-    }
+    throw new Error('Token request retry loop exited unexpectedly.');
   }
 }
