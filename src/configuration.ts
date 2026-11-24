@@ -12,11 +12,6 @@ export interface Configuration {
     tokenUri: string;
 
     /**
-     * Gets or sets the number of retries before repoorting failure.
-     */
-    maximumTokenRetry: number;
-
-    /**
      * Gets or sets the interval between retries in milliseconds.
      */
     tokenRetryInterval: number;
